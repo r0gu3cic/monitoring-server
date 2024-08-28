@@ -1,0 +1,39 @@
+# Ansible playbook that will configure the server
+---
+- hosts: "{{ hosts }}"
+  become: true
+  pre_tasks:
+    - name: Create a temporary directory for the role
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: ansible_role_XXXXXX
+        prefix: /tmp/
+      register: temp_role_dir
+
+    - name: Debug temporary directory path
+      ansible.builtin.debug:
+        msg: "Temporary directory path: {{ temp_role_dir.path }}"
+
+    - name: Install role from GitHub
+      ansible.builtin.shell: |
+        ansible-galaxy install git+https://github.com/r0gu3cic/initial-server-setup-role.git,develop -p {{ temp_role_dir.path }}
+      args:
+        creates: "{{ temp_role_dir.path }}/initial_server_setup-role"
+
+    - name: Debug installed role path
+      ansible.builtin.command: ls -la {{ temp_role_dir.path }}
+      register: role_dir_contents
+
+    - name: Show contents of the role directory
+      ansible.builtin.debug:
+        var: role_dir_contents.stdout
+
+  roles:
+    - role: initial_server_setup-role
+      roles_path: "{{ temp_role_dir.path }}"
+
+  post_tasks:
+    - name: Clean up temporary role directory
+      ansible.builtin.file:
+        path: "{{ temp_role_dir.path }}"
+        state: absent
